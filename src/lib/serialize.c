@@ -343,7 +343,7 @@ static int writeType(FldOutStream *stream, const SwtiType *type)
     return error;
 }
 
-int swtiSerializeToStream(FldOutStream *stream, const struct SwtiChunk *source)
+int swtisSerializeToStream(FldOutStream *stream, const struct SwtiChunk *source)
 {
     int error;
 
@@ -391,5 +391,5 @@ int swtisSerialize(uint8_t *octets, size_t maxCount, const SwtiChunk *source)
 
     fldOutStreamInit(&stream, octets, maxCount);
 
-    return swtiSerializeToStream(&stream, source);
+    return swtisSerializeToStream(&stream, source);
 }
