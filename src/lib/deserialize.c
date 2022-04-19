@@ -323,7 +323,7 @@ static int readTupleField(FldInStream* stream, SwtiTupleTypeField* field)
         return err;
     }
 
-    field->name = tc_str_dup("");
+    field->name = "";
 
     return 0;
 }
@@ -512,7 +512,7 @@ static int readType(FldInStream* stream, const SwtiType** outType, ImprintAlloca
             unmanaged->internal.index = 0;
             unmanaged->internal.hash = 0;
             unmanaged->userTypeId = 0;
-            swtiInitUnmanaged(unmanaged, 0, 0);
+            swtiInitUnmanaged(unmanaged, 0, 0, allocator);
             readUnmanagedType(stream, unmanaged, allocator);
             *outType = (const SwtiType*) unmanaged;
             error = 0;
