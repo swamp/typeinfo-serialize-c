@@ -12,14 +12,14 @@
 #include <swamp-typeinfo/typeinfo.h>
 #include <tiny-libc/tiny_libc.h>
 
-static int readString(FldInStream* stream, const char** outString)
+static int readString(FldInStream* stream, const char** outString, ImprintAllocator* allocator)
 {
     int error;
     uint8_t count;
     if ((error = fldInStreamReadUInt8(stream, &count)) != 0) {
         return error;
     }
-    uint8_t* characters = tc_malloc(count + 1);
+    uint8_t* characters = IMPRINT_ALLOC(allocator, count + 1, "readString");
     if ((error = fldInStreamReadOctets(stream, characters, count)) != 0) {
         return error;
     }
@@ -129,7 +129,7 @@ static int readVariant(FldInStream* stream, SwtiCustomTypeVariant* variant, Impr
 {
     const char* name;
 
-    readString(stream, &name);
+    readString(stream, &name, allocator);
     variant->name = name;
 
     int error = readMemoryInfo(stream, &variant->memoryInfo);
@@ -169,11 +169,11 @@ static int readVariants(FldInStream* stream, SwtiCustomType* custom, uint8_t cou
 static int readCustomType(FldInStream* stream, SwtiCustomType** outCustom, ImprintAllocator* allocator)
 {
     SwtiCustomType* custom = IMPRINT_ALLOC_TYPE(allocator, SwtiCustomType);
-    swtiInitCustom(custom, 0, 0, 0);
+    swtiInitCustom(custom, 0, 0, 0, allocator);
     //tc_free((void*)custom->variantTypes);
     int error;
 
-    if ((error = readString(stream, &custom->internal.name)) != 0) {
+    if ((error = readString(stream, &custom->internal.name, allocator)) != 0) {
         return error;
     }
 
@@ -203,10 +203,10 @@ static int readCustomType(FldInStream* stream, SwtiCustomType** outCustom, Impri
     return 0;
 }
 
-static int readRecordField(FldInStream* stream, SwtiRecordTypeField* field)
+static int readRecordField(FldInStream* stream, SwtiRecordTypeField* field, ImprintAllocator* allocator)
 {
     int error;
-    if ((error = readString(stream, &field->name)) != 0) {
+    if ((error = readString(stream, &field->name, allocator)) != 0) {
         return error;
     }
 
@@ -223,7 +223,7 @@ static int readRecordFields(FldInStream* stream, SwtiRecordType* record, uint8_t
     int error;
     record->fields = IMPRINT_ALLOC_TYPE_COUNT(allocator, SwtiRecordTypeField, count);
     for (uint8_t i = 0; i < count; i++) {
-        if ((error = readRecordField(stream, (SwtiRecordTypeField*) &record->fields[i])) != 0) {
+        if ((error = readRecordField(stream, (SwtiRecordTypeField*) &record->fields[i], allocator)) != 0) {
             return error;
         }
     }
@@ -298,7 +298,7 @@ static int readList(FldInStream* stream, SwtiListType** outList, ImprintAllocato
 static int readFunction(FldInStream* stream, SwtiFunctionType** outFn, ImprintAllocator* allocator)
 {
     struct SwtiFunctionType* fn = IMPRINT_ALLOC_TYPE(allocator, SwtiFunctionType);
-    swtiInitFunction(fn, 0, 0);
+    swtiInitFunction(fn, 0, 0, allocator);
     //tc_free(fn->parameterTypes);
     int error;
     if ((error = readTypeRefs(stream, &fn->parameterTypes, &fn->parameterCount, allocator)) != 0) {
@@ -332,7 +332,7 @@ static int readTupleField(FldInStream* stream, SwtiTupleTypeField* field)
 static int readTuple(FldInStream* stream, SwtiTupleType** outTuple, ImprintAllocator* allocator)
 {
     SwtiTupleType* tuple = IMPRINT_ALLOC_TYPE(allocator, SwtiTupleType);
-    swtiInitTuple(tuple, 0, 0);
+    swtiInitTuple(tuple, 0, 0, allocator);
     int error;
 
     if ((error = readMemoryInfo(stream, &tuple->memoryInfo)) != 0) {
@@ -360,7 +360,7 @@ static int readAlias(FldInStream* stream, SwtiAliasType** outAlias, ImprintAlloc
 {
     SwtiAliasType* alias = IMPRINT_ALLOC_TYPE(allocator, SwtiAliasType);
     int error;
-    if ((error = readString(stream, &alias->internal.name)) != 0) {
+    if ((error = readString(stream, &alias->internal.name, allocator)) != 0) {
         return error;
     }
     alias->internal.type = SwtiTypeAlias;
@@ -375,11 +375,11 @@ static int readAlias(FldInStream* stream, SwtiAliasType** outAlias, ImprintAlloc
     return 0;
 }
 
-static int readUnmanagedType(FldInStream* stream, SwtiUnmanagedType* unmanagedType)
+static int readUnmanagedType(FldInStream* stream, SwtiUnmanagedType* unmanagedType, ImprintAllocator* allocator)
 {
     int error;
 
-    if ((error = readString(stream, &unmanagedType->internal.name)) != 0) {
+    if ((error = readString(stream, &unmanagedType->internal.name, allocator)) != 0) {
         return error;
     }
     
@@ -513,7 +513,7 @@ static int readType(FldInStream* stream, const SwtiType** outType, ImprintAlloca
             unmanaged->internal.hash = 0;
             unmanaged->userTypeId = 0;
             swtiInitUnmanaged(unmanaged, 0, 0);
-            readUnmanagedType(stream, unmanaged);
+            readUnmanagedType(stream, unmanaged, allocator);
             *outType = (const SwtiType*) unmanaged;
             error = 0;
             break;
