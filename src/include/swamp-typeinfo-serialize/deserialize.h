@@ -10,8 +10,9 @@
 
 struct SwtiChunk;
 struct FldInStream;
+struct ImprintAllocator;
 
-int swtisDeserialize(const uint8_t* octets, size_t count, struct SwtiChunk* target);
-int swtisDeserializeFromStream(struct FldInStream* stream, struct SwtiChunk* target);
+int swtisDeserialize(const uint8_t* octets, size_t count, struct SwtiChunk* target, struct ImprintAllocator* allocator);
+int swtisDeserializeFromStream(struct FldInStream* stream, struct SwtiChunk* target, struct ImprintAllocator* allocator);
 
 #endif

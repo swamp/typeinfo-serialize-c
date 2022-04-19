@@ -4,12 +4,13 @@
  *--------------------------------------------------------------------------------------------*/
 #include <clog/clog.h>
 #include <flood/in_stream.h>
-#include <swamp-typeinfo/chunk.h>
+#include <imprint/allocator.h>
 #include <swamp-typeinfo-serialize/deserialize.h>
 #include <swamp-typeinfo-serialize/deserialize_internal.h>
+#include <swamp-typeinfo-serialize/version.h>
+#include <swamp-typeinfo/chunk.h>
 #include <swamp-typeinfo/typeinfo.h>
 #include <tiny-libc/tiny_libc.h>
-#include <swamp-typeinfo-serialize/version.h>
 
 static int readString(FldInStream* stream, const char** outString)
 {
@@ -85,7 +86,7 @@ static int readCount(FldInStream* stream, uint8_t* count)
     return 0;
 }
 
-static int readTypeRefs(FldInStream* stream, const SwtiType*** outTypes, size_t* outCount)
+static int readTypeRefs(FldInStream* stream, const SwtiType*** outTypes, size_t* outCount, ImprintAllocator* allocator)
 {
     int error;
     uint8_t count;
@@ -95,7 +96,7 @@ static int readTypeRefs(FldInStream* stream, const SwtiType*** outTypes, size_t*
         return error;
     }
 
-    const SwtiType** types = tc_malloc_type_count(const SwtiType*, count);
+    const SwtiType** types = IMPRINT_ALLOC_TYPE_COUNT(allocator, const SwtiType*, count);
     for (uint8_t i = 0; i < count; i++) {
         if ((error = readTypeRef(stream, &types[i])) != 0) {
             CLOG_ERROR("couldn't read type ref %d", error);
@@ -124,7 +125,7 @@ static int readVariantField(FldInStream* stream, SwtiCustomTypeVariantField* fie
     return 0;
 }
 
-static int readVariant(FldInStream* stream, SwtiCustomTypeVariant* variant)
+static int readVariant(FldInStream* stream, SwtiCustomTypeVariant* variant, ImprintAllocator* allocator)
 {
     const char* name;
 
@@ -141,7 +142,7 @@ static int readVariant(FldInStream* stream, SwtiCustomTypeVariant* variant)
         return error;
     }
 
-    SwtiCustomTypeVariantField* fields = tc_malloc_type_count(SwtiCustomTypeVariantField, variant->paramCount);
+    SwtiCustomTypeVariantField* fields = IMPRINT_ALLOC_TYPE_COUNT(allocator, SwtiCustomTypeVariantField, variant->paramCount);
     variant->fields = fields;
     for (size_t i=0; i<variant->paramCount; ++i) {
         int readErr = readVariantField(stream, (SwtiCustomTypeVariantField *)&variant->fields[i]);
@@ -152,12 +153,12 @@ static int readVariant(FldInStream* stream, SwtiCustomTypeVariant* variant)
     return 0;
 }
 
-static int readVariants(FldInStream* stream, SwtiCustomType* custom, uint8_t count)
+static int readVariants(FldInStream* stream, SwtiCustomType* custom, uint8_t count, ImprintAllocator* allocator)
 {
     int error;
-    custom->variantTypes = tc_malloc_type_count(SwtiCustomTypeVariant, count);
+    custom->variantTypes = IMPRINT_ALLOC_TYPE_COUNT(allocator, SwtiCustomTypeVariant, count);
     for (uint8_t i = 0; i < count; i++) {
-        if ((error = readVariant(stream, (SwtiCustomTypeVariant*) &custom->variantTypes[i])) != 0) {
+        if ((error = readVariant(stream, (SwtiCustomTypeVariant*) &custom->variantTypes[i], allocator)) != 0) {
             return error;
         }
     }
@@ -165,11 +166,11 @@ static int readVariants(FldInStream* stream, SwtiCustomType* custom, uint8_t cou
     return 0;
 }
 
-static int readCustomType(FldInStream* stream, SwtiCustomType** outCustom)
+static int readCustomType(FldInStream* stream, SwtiCustomType** outCustom, ImprintAllocator* allocator)
 {
-    SwtiCustomType* custom = tc_malloc_type(SwtiCustomType);
+    SwtiCustomType* custom = IMPRINT_ALLOC_TYPE(allocator, SwtiCustomType);
     swtiInitCustom(custom, 0, 0, 0);
-    tc_free((void*)custom->variantTypes);
+    //tc_free((void*)custom->variantTypes);
     int error;
 
     if ((error = readString(stream, &custom->internal.name)) != 0) {
@@ -192,7 +193,7 @@ static int readCustomType(FldInStream* stream, SwtiCustomType** outCustom)
 
     custom->variantCount = variantCount;
 
-    if ((error = readVariants(stream, custom, variantCount)) != 0) {
+    if ((error = readVariants(stream, custom, variantCount, allocator)) != 0) {
         *outCustom = 0;
         return error;
     }
@@ -217,10 +218,10 @@ static int readRecordField(FldInStream* stream, SwtiRecordTypeField* field)
     return readTypeRef(stream,  &field->fieldType);
 }
 
-static int readRecordFields(FldInStream* stream, SwtiRecordType* record, uint8_t count)
+static int readRecordFields(FldInStream* stream, SwtiRecordType* record, uint8_t count, ImprintAllocator* allocator)
 {
     int error;
-    record->fields = tc_malloc_type_count(SwtiRecordTypeField, count);
+    record->fields = IMPRINT_ALLOC_TYPE_COUNT(allocator, SwtiRecordTypeField, count);
     for (uint8_t i = 0; i < count; i++) {
         if ((error = readRecordField(stream, (SwtiRecordTypeField*) &record->fields[i])) != 0) {
             return error;
@@ -231,9 +232,9 @@ static int readRecordFields(FldInStream* stream, SwtiRecordType* record, uint8_t
     return 0;
 }
 
-static int readRecord(FldInStream* stream, SwtiRecordType** outRecord)
+static int readRecord(FldInStream* stream, SwtiRecordType** outRecord, ImprintAllocator* allocator)
 {
-    SwtiRecordType* record = tc_malloc_type(SwtiRecordType);
+    SwtiRecordType* record = IMPRINT_ALLOC_TYPE(allocator, SwtiRecordType);
     swtiInitRecord(record);
     int error;
     uint8_t fieldCount;
@@ -246,7 +247,7 @@ static int readRecord(FldInStream* stream, SwtiRecordType** outRecord)
         return error;
     }
 
-    if ((error = readRecordFields(stream, record, fieldCount)) != 0) {
+    if ((error = readRecordFields(stream, record, fieldCount, allocator)) != 0) {
         *outRecord = 0;
         return error;
     }
@@ -256,9 +257,9 @@ static int readRecord(FldInStream* stream, SwtiRecordType** outRecord)
     return 0;
 }
 
-static int readArray(FldInStream* stream, SwtiArrayType** outArray)
+static int readArray(FldInStream* stream, SwtiArrayType** outArray, ImprintAllocator* allocator)
 {
-    SwtiArrayType* array = tc_malloc_type(SwtiArrayType);
+    SwtiArrayType* array = IMPRINT_ALLOC_TYPE(allocator, SwtiArrayType);
     swtiInitArray(array);
     int error;
     if ((error = readTypeRef(stream,  &array->itemType)) != 0) {
@@ -275,9 +276,9 @@ static int readArray(FldInStream* stream, SwtiArrayType** outArray)
     return 0;
 }
 
-static int readList(FldInStream* stream, SwtiListType** outList)
+static int readList(FldInStream* stream, SwtiListType** outList, ImprintAllocator* allocator)
 {
-    SwtiListType* list = tc_malloc_type(SwtiListType);
+    SwtiListType* list = IMPRINT_ALLOC_TYPE(allocator, SwtiListType);
     swtiInitList(list);
     int error;
     if ((error = readTypeRef(stream,  &list->itemType)) != 0) {
@@ -294,13 +295,13 @@ static int readList(FldInStream* stream, SwtiListType** outList)
     return 0;
 }
 
-static int readFunction(FldInStream* stream, SwtiFunctionType** outFn)
+static int readFunction(FldInStream* stream, SwtiFunctionType** outFn, ImprintAllocator* allocator)
 {
-    struct SwtiFunctionType* fn = tc_malloc_type(SwtiFunctionType);
+    struct SwtiFunctionType* fn = IMPRINT_ALLOC_TYPE(allocator, SwtiFunctionType);
     swtiInitFunction(fn, 0, 0);
-    tc_free(fn->parameterTypes);
+    //tc_free(fn->parameterTypes);
     int error;
-    if ((error = readTypeRefs(stream, &fn->parameterTypes, &fn->parameterCount)) != 0) {
+    if ((error = readTypeRefs(stream, &fn->parameterTypes, &fn->parameterCount, allocator)) != 0) {
         *outFn = 0;
         return error;
     }
@@ -328,9 +329,9 @@ static int readTupleField(FldInStream* stream, SwtiTupleTypeField* field)
 }
 
 
-static int readTuple(FldInStream* stream, SwtiTupleType** outTuple)
+static int readTuple(FldInStream* stream, SwtiTupleType** outTuple, ImprintAllocator* allocator)
 {
-    SwtiTupleType* tuple = tc_malloc_type(SwtiTupleType);
+    SwtiTupleType* tuple = IMPRINT_ALLOC_TYPE(allocator, SwtiTupleType);
     swtiInitTuple(tuple, 0, 0);
     int error;
 
@@ -344,7 +345,7 @@ static int readTuple(FldInStream* stream, SwtiTupleType** outTuple)
     }
 
     tuple->fieldCount = fieldCount;
-    SwtiTupleTypeField* fields = tc_malloc_type_count(SwtiTupleTypeField, tuple->fieldCount);
+    SwtiTupleTypeField* fields = IMPRINT_ALLOC_TYPE_COUNT(allocator, SwtiTupleTypeField, tuple->fieldCount);
     tuple->fields = fields;
     for (size_t i = 0; i < tuple->fieldCount; ++i) {
         readTupleField(stream, (SwtiTupleTypeField *)&tuple->fields[i]);
@@ -355,9 +356,9 @@ static int readTuple(FldInStream* stream, SwtiTupleType** outTuple)
     return 0;
 }
 
-static int readAlias(FldInStream* stream, SwtiAliasType** outAlias)
+static int readAlias(FldInStream* stream, SwtiAliasType** outAlias, ImprintAllocator* allocator)
 {
-    SwtiAliasType* alias = tc_malloc_type(SwtiAliasType);
+    SwtiAliasType* alias = IMPRINT_ALLOC_TYPE(allocator, SwtiAliasType);
     int error;
     if ((error = readString(stream, &alias->internal.name)) != 0) {
         return error;
@@ -389,7 +390,7 @@ static int readUnmanagedType(FldInStream* stream, SwtiUnmanagedType* unmanagedTy
     return 0;
 }
 
-static int readType(FldInStream* stream, const SwtiType** outType)
+static int readType(FldInStream* stream, const SwtiType** outType, ImprintAllocator* allocator)
 {
     uint8_t typeValueRaw;
     int error;
@@ -403,84 +404,84 @@ static int readType(FldInStream* stream, const SwtiType** outType)
     switch (typeValue) {
         case SwtiTypeCustom: {
             SwtiCustomType* custom;
-            error = readCustomType(stream, &custom);
+            error = readCustomType(stream, &custom, allocator);
             *outType = (const SwtiType*) custom;
             break;
         }
         case SwtiTypeFunction: {
             SwtiFunctionType* fn;
-            error = readFunction(stream, &fn);
+            error = readFunction(stream, &fn, allocator);
             *outType = (const SwtiType*) fn;
             break;
         }
         case SwtiTypeAlias: {
             SwtiAliasType* alias;
-            error = readAlias(stream, &alias);
+            error = readAlias(stream, &alias, allocator);
             *outType = (const SwtiType*) alias;
             break;
         }
         case SwtiTypeRecord: {
             SwtiRecordType* record;
-            error = readRecord(stream, &record);
+            error = readRecord(stream, &record, allocator);
             *outType = (const SwtiType*) record;
             break;
         }
         case SwtiTypeArray: {
             SwtiArrayType* array;
-            error = readArray(stream, &array);
+            error = readArray(stream, &array, allocator);
             *outType = (const SwtiType*) array;
             break;
         }
         case SwtiTypeList: {
             SwtiListType* list;
-            error = readList(stream, &list);
+            error = readList(stream, &list, allocator);
             *outType = (const SwtiType*) list;
             break;
         }
         case SwtiTypeString: {
-            SwtiStringType* string = tc_malloc_type(SwtiStringType);
+            SwtiStringType* string = IMPRINT_ALLOC_TYPE(allocator, SwtiStringType);
             swtiInitString(string);
             error = 0;
             *outType = (const SwtiType*) string;
             break;
         }
         case SwtiTypeInt: {
-            SwtiIntType* intType = tc_malloc_type(SwtiIntType);
+            SwtiIntType* intType = IMPRINT_ALLOC_TYPE(allocator, SwtiIntType);
             swtiInitInt(intType);
             error = 0;
             *outType = (const SwtiType*) intType;
             break;
         }
         case SwtiTypeFixed: {
-            SwtiFixedType* fixed = tc_malloc_type(SwtiFixedType);
+            SwtiFixedType* fixed = IMPRINT_ALLOC_TYPE(allocator, SwtiFixedType);
             swtiInitFixed(fixed);
             *outType = (const SwtiType*) fixed;
             error = 0;
             break;
         }
         case SwtiTypeBoolean: {
-            SwtiBooleanType* bool = tc_malloc_type(SwtiBooleanType);
+            SwtiBooleanType* bool = IMPRINT_ALLOC_TYPE(allocator, SwtiBooleanType);
             swtiInitBoolean(bool);
             *outType = (const SwtiType*) bool;
             error = 0;
             break;
         }
         case SwtiTypeBlob: {
-            SwtiBlobType* blob = tc_malloc_type(SwtiBlobType);
+            SwtiBlobType* blob = IMPRINT_ALLOC_TYPE(allocator, SwtiBlobType);
             swtiInitBlob(blob);
             *outType = (const SwtiType*) blob;
             error = 0;
             break;
         }
         case SwtiTypeResourceName: {
-            SwtiIntType* intType = tc_malloc_type(SwtiIntType);
+            SwtiIntType* intType = IMPRINT_ALLOC_TYPE(allocator, SwtiIntType);
             swtiInitInt(intType);
             error = 0;
             *outType = (const SwtiType*) intType;
             break;
         }
         case SwtiTypeChar: {
-            SwtiCharType* ch = tc_malloc_type(SwtiCharType);
+            SwtiCharType* ch = IMPRINT_ALLOC_TYPE(allocator, SwtiCharType);
             swtiInitChar(ch);
             error = 0;
             *outType = (const SwtiType*) ch;
@@ -488,26 +489,26 @@ static int readType(FldInStream* stream, const SwtiType** outType)
         }
         case SwtiTypeTuple: {
             SwtiTupleType* tuple;
-            error = readTuple(stream, &tuple);
+            error = readTuple(stream, &tuple, allocator);
             *outType = (const SwtiType*) tuple;
             break;
         }
         case SwtiTypeAny: {
-            SwtiAnyType* any = tc_malloc_type(SwtiAnyType);
+            SwtiAnyType* any = IMPRINT_ALLOC_TYPE(allocator, SwtiAnyType);
             swtiInitAny(any);
             *outType = (const SwtiType*) any;
             error = 0;
             break;
         }
         case SwtiTypeAnyMatchingTypes: {
-            SwtiAnyMatchingTypesType* anyMatchingTypes = tc_malloc_type(SwtiAnyMatchingTypesType);
+            SwtiAnyMatchingTypesType* anyMatchingTypes = IMPRINT_ALLOC_TYPE(allocator, SwtiAnyMatchingTypesType);
             swtiInitAnyMatchingTypes(anyMatchingTypes);
             *outType = (const SwtiType*) anyMatchingTypes;
             error = 0;
             break;
         }
         case SwtiTypeUnmanaged: {
-            SwtiUnmanagedType* unmanaged = tc_malloc_type(SwtiUnmanagedType);
+            SwtiUnmanagedType* unmanaged = IMPRINT_ALLOC_TYPE(allocator, SwtiUnmanagedType);
             unmanaged->internal.index = 0;
             unmanaged->internal.hash = 0;
             unmanaged->userTypeId = 0;
@@ -525,7 +526,7 @@ static int readType(FldInStream* stream, const SwtiType** outType)
     return error;
 }
 
-static int deserializeRawFromStream(FldInStream* stream, SwtiChunk* target)
+static int deserializeRawFromStream(FldInStream* stream, SwtiChunk* target, ImprintAllocator* allocator)
 {
     int error;
     uint8_t major;
@@ -555,7 +556,7 @@ static int deserializeRawFromStream(FldInStream* stream, SwtiChunk* target)
         return error;
     }
 
-    const struct SwtiType** array = tc_malloc_type_count(const SwtiType*, typesThatFollowCount);
+    const struct SwtiType** array = IMPRINT_ALLOC_TYPE_COUNT(allocator, const SwtiType*, typesThatFollowCount);
     target->types = array;
     tc_mem_clear_type_n(array, typesThatFollowCount);
     target->typeCount = typesThatFollowCount;
@@ -565,7 +566,7 @@ static int deserializeRawFromStream(FldInStream* stream, SwtiChunk* target)
     }
 
     for (uint16_t i = 0; i < typesThatFollowCount; i++) {
-        if ((error = readType(stream, &target->types[i])) != 0) {
+        if ((error = readType(stream, &target->types[i], allocator)) != 0) {
             return error;
         }
         ((SwtiType*) (target->types[i]))->index = i;
@@ -575,20 +576,20 @@ static int deserializeRawFromStream(FldInStream* stream, SwtiChunk* target)
     return octetsRead;
 }
 
-static int swtiDeserializeRaw(const uint8_t* octets, size_t octetCount, SwtiChunk* target)
+static int swtiDeserializeRaw(const uint8_t* octets, size_t octetCount, SwtiChunk* target, ImprintAllocator* allocator)
 {
     FldInStream stream;
 
     fldInStreamInit(&stream, octets, octetCount);
 
-    return deserializeRawFromStream(&stream, target);
+    return deserializeRawFromStream(&stream, target, allocator);
 }
 
-int swtisDeserialize(const uint8_t* octets, size_t octetCount, SwtiChunk* target)
+int swtisDeserialize(const uint8_t* octets, size_t octetCount, SwtiChunk* target, ImprintAllocator* allocator)
 {
     int octetsRead;
 
-    if ((octetsRead = swtiDeserializeRaw(octets, octetCount, target)) < 0) {
+    if ((octetsRead = swtiDeserializeRaw(octets, octetCount, target, allocator)) < 0) {
         CLOG_SOFT_ERROR("swtiDeserializeRaw %d", octetsRead)
         return octetsRead;
     }
@@ -603,11 +604,11 @@ int swtisDeserialize(const uint8_t* octets, size_t octetCount, SwtiChunk* target
     return octetsRead;
 }
 
-int swtisDeserializeFromStream(FldInStream* stream, SwtiChunk* target)
+int swtisDeserializeFromStream(FldInStream* stream, SwtiChunk* target, struct ImprintAllocator* allocator)
 {
     int octetsRead;
 
-    if ((octetsRead = deserializeRawFromStream(stream, target)) < 0) {
+    if ((octetsRead = deserializeRawFromStream(stream, target, allocator)) < 0) {
         return octetsRead;
     }
 
