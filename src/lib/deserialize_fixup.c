@@ -109,6 +109,10 @@ static int fixupType(SwtiType* type, const SwtiChunk* chunk)
             SwtiAliasType* alias = (SwtiAliasType*) type;
             return fixupTypeRef((const SwtiType**) &alias->targetType, chunk);
         }
+        case SwtiTypeRefId: {
+            SwtiTypeRefIdType * typeRefId = (SwtiTypeRefIdType *) type;
+            return fixupTypeRef((const SwtiType**) &typeRefId->referencedType, chunk);
+        }
         case SwtiTypeRecord: {
             SwtiRecordType* record = (SwtiRecordType*) type;
             return fixupRecordType(record, chunk);

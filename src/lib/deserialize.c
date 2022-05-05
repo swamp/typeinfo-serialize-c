@@ -375,6 +375,24 @@ static int readAlias(FldInStream* stream, SwtiAliasType** outAlias, ImprintAlloc
     return 0;
 }
 
+static int readTypeRefId(FldInStream* stream, SwtiTypeRefIdType** outTypeRefId, ImprintAllocator* allocator)
+{
+    SwtiTypeRefIdType* newTypeRefId = IMPRINT_ALLOC_TYPE(allocator, SwtiTypeRefIdType);
+    newTypeRefId->internal.type = SwtiTypeRefId;
+    newTypeRefId->internal.name = "TypeRefId";
+
+    int error;
+
+    if ((error = readTypeRef(stream,  &newTypeRefId->referencedType)) != 0) {
+        *outTypeRefId = 0;
+        return error;
+    }
+
+    *outTypeRefId = newTypeRefId;
+
+    return 0;
+}
+
 static int readUnmanagedType(FldInStream* stream, SwtiUnmanagedType* unmanagedType, ImprintAllocator* allocator)
 {
     int error;
@@ -418,6 +436,12 @@ static int readType(FldInStream* stream, const SwtiType** outType, ImprintAlloca
             SwtiAliasType* alias;
             error = readAlias(stream, &alias, allocator);
             *outType = (const SwtiType*) alias;
+            break;
+        }
+        case SwtiTypeRefId: {
+            SwtiTypeRefIdType* typeRef = IMPRINT_ALLOC_TYPE(allocator, SwtiTypeRefIdType);
+            error = readTypeRefId(stream, &typeRef, allocator);
+            *outType = (const SwtiType*) typeRef;
             break;
         }
         case SwtiTypeRecord: {
@@ -493,6 +517,7 @@ static int readType(FldInStream* stream, const SwtiType** outType, ImprintAlloca
             *outType = (const SwtiType*) tuple;
             break;
         }
+
         case SwtiTypeAny: {
             SwtiAnyType* any = IMPRINT_ALLOC_TYPE(allocator, SwtiAnyType);
             swtiInitAny(any);
