@@ -73,17 +73,60 @@ static int fixupTupleType(SwtiTupleType* tuple, const struct SwtiChunk* chunk)
     return 0;
 }
 
+static int fixupCustomVariantType(SwtiCustomTypeVariant* variant, const struct SwtiChunk* chunk)
+{
+    int error;
+
+    if ((error = fixupTypeRef((const SwtiType**) &variant->inCustomType, chunk)) != 0) {
+        return error;
+    }
+    if (variant->inCustomType->internal.type != SwtiTypeCustom) {
+        return -4;
+    }
+
+    for (size_t i = 0; i < variant->paramCount; ++i) {
+        SwtiCustomTypeVariantField * mutableField = (SwtiCustomTypeVariantField*) &variant->fields[i];
+        if ((error = fixupTypeRef(&mutableField->fieldType, chunk)) != 0) {
+            return error;
+        }
+    }
+
+    return 0;
+}
+
+static int fixupGenerics(SwtiGenericParams* generics, const struct SwtiChunk* chunk)
+{
+    int error;
+    for (size_t i = 0; i < generics->genericCount; ++i) {
+        const SwtiType** mutableVariant = (const SwtiType **) &generics->genericTypes[i];
+        if ((error = fixupTypeRef(mutableVariant, chunk)) != 0) {
+            return error;
+        }
+        const SwtiType * genericType = generics->genericTypes[i];
+        if (genericType->type == SwtiTypeCustomVariant) {
+            return -46;
+        }
+    }
+
+    return 0;
+}
+
+
 static int fixupCustomType(SwtiCustomType* custom, const struct SwtiChunk* chunk)
 {
     int error;
 
+    fixupGenerics(&custom->generic, chunk);
+
     for (size_t i = 0; i < custom->variantCount; ++i) {
-        SwtiCustomTypeVariant* mutableVariant = (SwtiCustomTypeVariant*) &custom->variantTypes[i];
-        for (size_t variantParamIndex = 0; variantParamIndex < mutableVariant->paramCount; ++variantParamIndex) {
-            SwtiCustomTypeVariantField* mutableVariantField = (SwtiCustomTypeVariantField*) &mutableVariant->fields[variantParamIndex];
-            if ((error = fixupTypeRef(&mutableVariantField->fieldType, chunk)) != 0) {
-                return error;
-            }
+        const SwtiType** mutableVariant = (const SwtiType **) &custom->variantTypes[i];
+        if ((error = fixupTypeRef(mutableVariant, chunk)) != 0) {
+            return error;
+        }
+        const SwtiCustomTypeVariant* variant = custom->variantTypes[i];
+
+        if (variant->internal.type != SwtiTypeCustomVariant) {
+            return -46;
         }
     }
 
@@ -96,6 +139,10 @@ static int fixupType(SwtiType* type, const SwtiChunk* chunk)
         case SwtiTypeCustom: {
             SwtiCustomType* custom = (SwtiCustomType*) type;
             return fixupCustomType(custom, chunk);
+        }
+        case SwtiTypeCustomVariant: {
+            SwtiCustomTypeVariant * custom = (SwtiCustomTypeVariant*) type;
+            return fixupCustomVariantType(custom, chunk);
         }
         case SwtiTypeFunction: {
             SwtiFunctionType* fn = (SwtiFunctionType*) type;

@@ -125,7 +125,7 @@ static int readVariantField(FldInStream* stream, SwtiCustomTypeVariantField* fie
     return 0;
 }
 
-static int readVariant(FldInStream* stream, SwtiCustomTypeVariant* variant, ImprintAllocator* allocator)
+static int readVariantEmbedded(FldInStream* stream, SwtiCustomTypeVariant* variant, ImprintAllocator* allocator)
 {
     const char* name;
 
@@ -153,14 +153,42 @@ static int readVariant(FldInStream* stream, SwtiCustomTypeVariant* variant, Impr
     return 0;
 }
 
-static int readVariants(FldInStream* stream, SwtiCustomType* custom, uint8_t count, ImprintAllocator* allocator)
+static int readVariant(FldInStream* stream, SwtiCustomTypeVariant** out, ImprintAllocator* allocator)
+{
+    SwtiCustomTypeVariant* variant = IMPRINT_ALLOC_TYPE(allocator, SwtiCustomTypeVariant);
+
+    swtiInitVariant(variant, 0, 0, allocator);
+
+    *out = variant;
+
+    const SwtiType* hopefullyCustomType;
+    readTypeRef(stream, &hopefullyCustomType);
+
+    variant->inCustomType = (const SwtiCustomType*) hopefullyCustomType;
+
+    return readVariantEmbedded(stream, variant, allocator);
+}
+
+static int readEmbeddedVariants(FldInStream* stream, SwtiCustomType* custom, uint8_t count, ImprintAllocator* allocator)
 {
     int error;
-    custom->variantTypes = IMPRINT_ALLOC_TYPE_COUNT(allocator, SwtiCustomTypeVariant, count);
+    custom->variantTypes = IMPRINT_ALLOC_TYPE_COUNT(allocator, const SwtiCustomTypeVariant*, count);
     for (uint8_t i = 0; i < count; i++) {
-        if ((error = readVariant(stream, (SwtiCustomTypeVariant*) &custom->variantTypes[i], allocator)) != 0) {
-            return error;
-        }
+        SwtiCustomTypeVariant** field = (SwtiCustomTypeVariant**) &custom->variantTypes[i];
+        const SwtiType* hopefullyCustomVariantType;
+        readTypeRef(stream, &hopefullyCustomVariantType);
+        *field = ( SwtiCustomTypeVariant *) hopefullyCustomVariantType;
+      }
+
+    return 0;
+}
+
+static int readGenerics(FldInStream* stream, SwtiGenericParams* params, ImprintAllocator* allocator)
+{
+    int error;
+
+    if ((error = readTypeRefs(stream, &params->genericTypes, &params->genericCount, allocator)) != 0) {
+        return error;
     }
 
     return 0;
@@ -182,6 +210,10 @@ static int readCustomType(FldInStream* stream, SwtiCustomType** outCustom, Impri
         return error;
     }
 
+    if ((error = readGenerics(stream, &custom->generic, allocator)) != 0) {
+        return error;
+    }
+
     uint8_t variantCount;
     if ((error = fldInStreamReadUInt8(stream, &variantCount)) != 0) {
         return error;
@@ -193,7 +225,7 @@ static int readCustomType(FldInStream* stream, SwtiCustomType** outCustom, Impri
 
     custom->variantCount = variantCount;
 
-    if ((error = readVariants(stream, custom, variantCount, allocator)) != 0) {
+    if ((error = readEmbeddedVariants(stream, custom, variantCount, allocator)) != 0) {
         *outCustom = 0;
         return error;
     }
@@ -419,10 +451,17 @@ static int readType(FldInStream* stream, const SwtiType** outType, ImprintAlloca
 
     error = -99;
     SwtiTypeValue typeValue = (SwtiTypeValue) typeValueRaw;
+
     switch (typeValue) {
         case SwtiTypeCustom: {
             SwtiCustomType* custom;
             error = readCustomType(stream, &custom, allocator);
+            *outType = (const SwtiType*) custom;
+            break;
+        }
+        case SwtiTypeCustomVariant: {
+            SwtiCustomTypeVariant* custom;
+            error = readVariant(stream, &custom, allocator);
             *outType = (const SwtiType*) custom;
             break;
         }
