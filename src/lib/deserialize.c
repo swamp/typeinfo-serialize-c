@@ -10,7 +10,6 @@
 #include <swamp-typeinfo-serialize/version.h>
 #include <swamp-typeinfo/chunk.h>
 #include <swamp-typeinfo/typeinfo.h>
-#include <tiny-libc/tiny_libc.h>
 
 static int readString(FldInStream* stream, const char** outString, ImprintAllocator* allocator)
 {

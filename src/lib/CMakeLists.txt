@@ -37,6 +37,7 @@ target_compile_options(swamp_typeinfo_serialize PRIVATE -Wall -Wextra -Wshadow -
 target_include_directories(swamp_typeinfo_serialize PUBLIC ${deps}swamp/runtime-c/src/include)
 target_include_directories(swamp_typeinfo_serialize PUBLIC ${deps}swamp/typeinfo-c/src/include)
 target_include_directories(swamp_typeinfo_serialize PUBLIC ${deps}piot/tiny-libc/src/include)
+target_include_directories(swamp_typeinfo_serialize PUBLIC ${deps}piot/imprint/src/include)
 target_include_directories(swamp_typeinfo_serialize PUBLIC ${deps}piot/flood-c/src/include)
 target_include_directories(swamp_typeinfo_serialize PUBLIC ${deps}piot/clog/src/include)
 target_include_directories(swamp_typeinfo_serialize PUBLIC ../include)

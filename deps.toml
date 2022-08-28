@@ -8,5 +8,9 @@ name = 'piot/flood-c'
 version = "*"
 
 [[dependencies]]
+name = 'piot/imprint'
+version = "*"
+
+[[dependencies]]
 name = 'swamp/typeinfo-c'
 version = "*"
