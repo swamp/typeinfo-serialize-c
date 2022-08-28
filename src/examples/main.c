@@ -20,6 +20,7 @@ static void tyran_log_implementation(enum clog_type type, const char *string)
     fprintf(stderr, "%s\n", string);
 }
 
+/*
 void test()
 {
     SwtiStringType s;
@@ -41,7 +42,7 @@ void test()
     SwtiRecordType r;
     swtiInitRecordWithFields(&r, fields, sizeof(fields) / sizeof(fields[0]));
 
-    
+
     SwtiCustomTypeVariant v1;
     v1.fields = 0;
     v1.paramCount = 0;
@@ -157,6 +158,9 @@ void test()
     swtiChunkDebugOutput(&copyChunk, 0, "after copy");
 }
 
+
+#include <imprint/allocator.h>
+
 void file()
 {
     FILE *f = fopen("output.swamp-typeinfo", "rb");
@@ -171,6 +175,7 @@ void file()
     uint8_t *octets = malloc(fsize);
     fread(octets, 1, fsize, f);
     fclose(f);
+
 
     SwtiChunk chunk;
     int error = swtisDeserialize(octets, fsize, &chunk);
@@ -221,11 +226,10 @@ void file()
     swtiChunkDebugOutput(&copyChunk, 0, "copied");
 }
 
+ */
 int main()
 {
     g_clog.log = tyran_log_implementation;
-
-    test();
 
     return 0;
 }
