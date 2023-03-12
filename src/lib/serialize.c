@@ -334,6 +334,16 @@ static int writeType(FldOutStream *stream, const SwtiType *type)
         error = 0;
         break;
     }
+    case SwtiTypeCustomVariant:
+    {
+      error = 0;
+      break;
+    }
+    case SwtiTypeRefId:
+    {
+      error = 0;
+      break;
+    }
     default:
     {
         CLOG_ERROR("Unknown type %d", type->type);

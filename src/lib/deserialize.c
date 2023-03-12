@@ -170,7 +170,6 @@ static int readVariant(FldInStream* stream, SwtiCustomTypeVariant** out, Imprint
 
 static int readEmbeddedVariants(FldInStream* stream, SwtiCustomType* custom, uint8_t count, ImprintAllocator* allocator)
 {
-    int error;
     custom->variantTypes = IMPRINT_ALLOC_TYPE_COUNT(allocator, const SwtiCustomTypeVariant*, count);
     for (uint8_t i = 0; i < count; i++) {
         SwtiCustomTypeVariant** field = (SwtiCustomTypeVariant**) &custom->variantTypes[i];

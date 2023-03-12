@@ -18,7 +18,7 @@ static int fixupTypeRef(const SwtiType** type, const SwtiChunk* chunk)
         return -2;
     }
     if (ptrValue >= chunk->typeCount) {
-        CLOG_ERROR("something is wrong here. index is more than number of entries. %lu of %zu", ptrValue, chunk->typeCount)
+        CLOG_ERROR("something is wrong here. index is more than number of entries. %I64u of %zu", ptrValue, chunk->typeCount)
         *type = 0;
         return -3;
     }
